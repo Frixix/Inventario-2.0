@@ -66,42 +66,6 @@ def obtener_productos():
     return productos
 
 
-def registrar_movimiento(producto_id, tipo_movimiento, cantidad, motivo=None):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    cursor.execute("""
-    INSERT INTO movimientos_inventario
-    (producto_id, tipo_movimiento, cantidad, fecha, motivo)
-    VALUES (?, ?, ?, ?, ?)
-    """, (producto_id, tipo_movimiento, cantidad, fecha, motivo))
-
-    if tipo_movimiento == "SALIDA":
-        cursor.execute("""
-        UPDATE productos
-        SET stock_actual = stock_actual - ?
-        WHERE id = ?
-        """, (cantidad, producto_id))
-
-    elif tipo_movimiento == "ENTRADA":
-        cursor.execute("""
-        UPDATE productos
-        SET stock_actual = stock_actual + ?
-        WHERE id = ?
-        """, (cantidad, producto_id))
-
-    elif tipo_movimiento == "AJUSTE_ADMIN":
-        cursor.execute("""
-        UPDATE productos
-        SET stock_actual = stock_actual + ?
-        WHERE id = ?
-        """, (cantidad, producto_id))
-
-    conn.commit()
-    conn.close()
-
 def obtener_stock_producto(producto_id):
     conn = get_connection()
     cursor = conn.cursor()
@@ -114,7 +78,49 @@ def obtener_stock_producto(producto_id):
 
     resultado = cursor.fetchone()
     conn.close()
+
     if resultado is None:
         return None
 
-    return resultado[0] 
+    return resultado[0]
+
+
+def obtener_stock_y_minimo(producto_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT stock_actual, stock_minimo
+    FROM productos
+    WHERE id = ?
+    """, (producto_id,))
+
+    resultado = cursor.fetchone()
+    conn.close()
+
+    if resultado is None:
+        return None
+
+    return resultado  # (stock_actual, stock_minimo)
+
+
+def registrar_movimiento(producto_id, tipo_movimiento, cantidad, motivo=None):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    cursor.execute("""
+    INSERT INTO movimientos_inventario
+    (producto_id, tipo_movimiento, cantidad, fecha, motivo)
+    VALUES (?, ?, ?, ?, ?)
+    """, (producto_id, tipo_movimiento, cantidad, fecha, motivo))
+
+    cursor.execute("""
+    UPDATE productos
+    SET stock_actual = stock_actual + ?
+    WHERE id = ?
+    """, (cantidad, producto_id))
+
+    conn.commit()
+    conn.close()
