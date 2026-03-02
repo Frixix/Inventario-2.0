@@ -1,7 +1,8 @@
 from database import (
     obtener_stock_producto,
     obtener_stock_y_minimo,
-    registrar_movimiento
+    registrar_movimiento,
+    obtener_movimientos_producto
 )
 
 
@@ -24,12 +25,15 @@ def _aplicar_movimiento(producto_id, tipo_movimiento, cantidad, motivo):
             f"(actual: {stock_actual})"
         )
 
-    registrar_movimiento(
+    ok, mensaje = registrar_movimiento(
         producto_id=producto_id,
         tipo_movimiento=tipo_movimiento,
         cantidad=cantidad,
         motivo=motivo
     )
+
+    if not ok:
+        return False, mensaje
 
     return True, "Movimiento registrado correctamente"
 
@@ -85,3 +89,11 @@ def verificar_stock_minimo(producto_id):
         )
 
     return False, "Stock en nivel normal"
+
+def ver_historial_producto(producto_id):
+    movimientos = obtener_movimientos_producto(producto_id)
+
+    if not movimientos:
+        return False, "No hay movimientos registrados"
+
+    return True, movimientos
