@@ -12,14 +12,17 @@ def crear_tablas():
     conn = get_connection()
     cursor = conn.cursor()
 
+    # Activar claves foráneas
+    cursor.execute("PRAGMA foreign_keys = ON;")
+
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS productos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre TEXT NOT NULL,
-        precio_venta INTEGER NOT NULL,
+        precio_venta INTEGER NOT NULL CHECK (precio_venta >= 0),
         stock_actual INTEGER NOT NULL,
-        stock_minimo INTEGER NOT NULL,
-        activo INTEGER NOT NULL DEFAULT 1
+        stock_minimo INTEGER NOT NULL CHECK (stock_minimo >= 0),
+        activo INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0,1))
     );
     """)
 
@@ -28,7 +31,7 @@ def crear_tablas():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         producto_id INTEGER NOT NULL,
         tipo_movimiento TEXT NOT NULL,
-        cantidad INTEGER NOT NULL,
+        cantidad INTEGER NOT NULL CHECK (cantidad != 0),
         fecha TEXT NOT NULL,
         motivo TEXT,
         FOREIGN KEY (producto_id) REFERENCES productos(id)
@@ -37,7 +40,6 @@ def crear_tablas():
 
     conn.commit()
     conn.close()
-
 
 def insertar_producto(nombre, precio_venta, stock_inicial, stock_minimo):
     conn = get_connection()
@@ -51,20 +53,22 @@ def insertar_producto(nombre, precio_venta, stock_inicial, stock_minimo):
     conn.commit()
     conn.close()
 
-
 def obtener_productos():
     conn = get_connection()
     cursor = conn.cursor()
 
+    cursor.execute("PRAGMA foreign_keys = ON;")
+
     cursor.execute("""
-    SELECT id, nombre, stock_actual
+    SELECT id, nombre, precio_venta, stock_actual, stock_minimo, activo
     FROM productos
+    WHERE activo = 1
+    ORDER BY nombre ASC
     """)
 
     productos = cursor.fetchall()
     conn.close()
     return productos
-
 
 def obtener_stock_producto(producto_id):
     conn = get_connection()
@@ -103,24 +107,56 @@ def obtener_stock_y_minimo(producto_id):
 
     return resultado  # (stock_actual, stock_minimo)
 
+def obtener_movimientos_producto(producto_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("PRAGMA foreign_keys = ON;")
+
+    cursor.execute("""
+    SELECT id, tipo_movimiento, cantidad, fecha, motivo
+    FROM movimientos_inventario
+    WHERE producto_id = ?
+    ORDER BY fecha ASC
+    """, (producto_id,))
+
+    movimientos = cursor.fetchall()
+    conn.close()
+    return movimientos
+
+
 
 def registrar_movimiento(producto_id, tipo_movimiento, cantidad, motivo=None):
     conn = get_connection()
     cursor = conn.cursor()
 
-    fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        cursor.execute("PRAGMA foreign_keys = ON;")
 
-    cursor.execute("""
-    INSERT INTO movimientos_inventario
-    (producto_id, tipo_movimiento, cantidad, fecha, motivo)
-    VALUES (?, ?, ?, ?, ?)
-    """, (producto_id, tipo_movimiento, cantidad, fecha, motivo))
+        fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    cursor.execute("""
-    UPDATE productos
-    SET stock_actual = stock_actual + ?
-    WHERE id = ?
-    """, (cantidad, producto_id))
+        cursor.execute("""
+        INSERT INTO movimientos_inventario
+        (producto_id, tipo_movimiento, cantidad, fecha, motivo)
+        VALUES (?, ?, ?, ?, ?)
+        """, (producto_id, tipo_movimiento, cantidad, fecha, motivo))
 
-    conn.commit()
-    conn.close()
+        cursor.execute("""
+        UPDATE productos
+        SET stock_actual = stock_actual + ?
+        WHERE id = ?
+        """, (cantidad, producto_id))
+
+        conn.commit()
+        return True, "Movimiento persistido en base de datos"
+
+    except sqlite3.IntegrityError as e:
+        conn.rollback()
+        return False, f"Error de integridad: {str(e)}"
+
+    except Exception as e:
+        conn.rollback()
+        return False, f"Error inesperado: {str(e)}"
+
+    finally:
+        conn.close()
