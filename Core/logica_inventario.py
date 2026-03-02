@@ -1,4 +1,4 @@
-from database import (
+from Core.database import (
     obtener_stock_producto,
     obtener_stock_y_minimo,
     registrar_movimiento,
