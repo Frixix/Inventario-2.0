@@ -81,7 +81,3 @@ La GUI nunca interactúa directamente con la base de datos.
 - Código estructurado para escalabilidad futura
 
 ---
-
-## Autor
-
-Proyecto desarrollado como parte de proceso de aprendizaje estructurado en desarrollo de software.

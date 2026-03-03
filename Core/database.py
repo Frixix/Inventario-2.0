@@ -124,6 +124,26 @@ def obtener_movimientos_producto(producto_id):
     conn.close()
     return movimientos
 
+def obtener_salidas():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT
+        p.id,
+        p.nombre,
+        m.fecha,
+        m.cantidad,
+        m.motivo
+    FROM movimientos_inventario m
+    JOIN productos p ON m.producto_id = p.id
+    WHERE m.tipo_movimiento = 'SALIDA'
+    ORDER BY m.fecha ASC
+    """)
+
+    salidas = cursor.fetchall()
+    conn.close()
+    return salidas
 
 
 def registrar_movimiento(producto_id, tipo_movimiento, cantidad, motivo=None):
