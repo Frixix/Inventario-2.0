@@ -1,8 +1,9 @@
-from Core.database import (
+from core.database import (
     obtener_stock_producto,
     obtener_stock_y_minimo,
     registrar_movimiento,
-    obtener_movimientos_producto
+    obtener_movimientos_producto,
+    insertar_producto
 )
 
 
@@ -97,3 +98,27 @@ def ver_historial_producto(producto_id):
         return False, "No hay movimientos registrados"
 
     return True, movimientos
+
+from core.database import obtener_productos
+
+
+def listar_productos():
+    return obtener_productos()
+
+def crear_producto(nombre, precio, stock, minimo):
+
+    if not nombre or nombre.strip() == "":
+        return False, "El nombre es obligatorio"
+
+    if precio <= 0:
+        return False, "El precio debe ser mayor que cero"
+
+    if stock < 0:
+        return False, "El stock no puede ser negativo"
+
+    if minimo < 0:
+        return False, "El stock mínimo no puede ser negativo"
+
+    insertar_producto(nombre, precio, stock, minimo)
+
+    return True, "Producto creado correctamente"
