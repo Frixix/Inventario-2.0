@@ -14,6 +14,14 @@ class ProductoForm:
         self.window.geometry("400x350")
         self.window.resizable(False, False)
 
+        # ===== HACER MODAL =====
+        self.window.transient(parent)
+        self.window.grab_set()
+        self.window.focus()
+
+        # Manejar cierre con la X
+        self.window.protocol("WM_DELETE_WINDOW", self._cerrar_formulario)
+
         self._build_form()
 
     def _build_form(self):
@@ -56,8 +64,16 @@ class ProductoForm:
 
             messagebox.showinfo("Éxito", "Producto registrado correctamente")
 
+            # Solo aquí llamamos al callback
             self.on_success_callback()
+
             self.window.destroy()
 
         except ValueError:
-            messagebox.showerror("Error", "Precio, stock y mínimo deben ser números enteros")
+            messagebox.showerror(
+                "Error",
+                "Precio, stock y mínimo deben ser números enteros"
+            )
+
+    def _cerrar_formulario(self):
+        self.window.destroy()
