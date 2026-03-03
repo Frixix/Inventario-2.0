@@ -37,9 +37,21 @@ class MainWindow:
             height=15
         )
 
-        for col in columnas:
-            self.tabla.heading(col, text=col)
-            self.tabla.column(col, width=150)
+        # Configuración específica por columna
+        self.tabla.heading("ID", text="ID")
+        self.tabla.column("ID", width=60, anchor="center")
+
+        self.tabla.heading("Nombre", text="Nombre del Producto")
+        self.tabla.column("Nombre", width=250, anchor="w")
+
+        self.tabla.heading("Precio", text="Precio (COP)")
+        self.tabla.column("Precio", width=120, anchor="center")
+
+        self.tabla.heading("Stock", text="Stock Actual")
+        self.tabla.column("Stock", width=120, anchor="center")
+
+        self.tabla.heading("Mínimo", text="Stock Mínimo")
+        self.tabla.column("Mínimo", width=120, anchor="center")
 
         self.tabla.pack(pady=10)
 
@@ -54,6 +66,7 @@ class MainWindow:
         )
         boton_refrescar.pack(pady=5)
 
+        # Guardamos como atributo
         self.btn_registrar = tk.Button(
             self.root,
             text="Registrar Producto",
@@ -77,18 +90,20 @@ class MainWindow:
             )
 
     def _abrir_formulario_producto(self):
-        # Deshabilitamos el botón
+
+        # Deshabilitamos botón
         self.btn_registrar.config(state="disabled")
 
-        # Creamos el formulario
-        ProductoForm(self.root, self._on_producto_creado)
+        form = ProductoForm(self.root, self._on_producto_creado)
 
-    def run(self):
-        self.root.mainloop()    
+        # Esperamos a que se cierre la ventana
+        self.root.wait_window(form.window)
+
+        # Se vuelve a habilitar SIEMPRE
+        self.btn_registrar.config(state="normal")
 
     def _on_producto_creado(self):
-    # Refrescamos la tabla
         self._cargar_productos()
 
-        # Volvemos a habilitar el botón
-        self.btn_registrar.config(state="normal")
+    def run(self):
+        self.root.mainloop()
