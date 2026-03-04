@@ -4,63 +4,92 @@ from datetime import datetime
 DB_NAME = "inventario.db"
 
 
-def get_connection():
-    return sqlite3.connect(DB_NAME)
+# ======================================================
+# CONEXIÓN
+# ======================================================
 
+def get_connection():
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("PRAGMA foreign_keys = ON;")
+    return conn
+
+
+# ======================================================
+# CREAR TABLAS (Migración limpia)
+# ======================================================
 
 def crear_tablas():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Activar claves foráneas
-    cursor.execute("PRAGMA foreign_keys = ON;")
-
+    # ----------------------
+    # TABLA PRODUCTOS
+    # ----------------------
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS productos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT NOT NULL UNIQUE,
         nombre TEXT NOT NULL,
         precio_venta INTEGER NOT NULL CHECK (precio_venta >= 0),
-        stock_actual INTEGER NOT NULL,
+        stock_actual INTEGER NOT NULL DEFAULT 0,
         stock_minimo INTEGER NOT NULL CHECK (stock_minimo >= 0),
         activo INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0,1))
     );
     """)
 
+    # ----------------------
+    # TABLA CLIENTES
+    # ----------------------
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS clientes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL UNIQUE
+    );
+    """)
+
+    # ----------------------
+    # TABLA MOVIMIENTOS
+    # ----------------------
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS movimientos_inventario (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         producto_id INTEGER NOT NULL,
+        cliente_id INTEGER,
         tipo_movimiento TEXT NOT NULL,
         cantidad INTEGER NOT NULL CHECK (cantidad != 0),
         fecha TEXT NOT NULL,
-        motivo TEXT,
-        FOREIGN KEY (producto_id) REFERENCES productos(id)
+        FOREIGN KEY (producto_id) REFERENCES productos(id),
+        FOREIGN KEY (cliente_id) REFERENCES clientes(id)
     );
     """)
 
     conn.commit()
     conn.close()
 
-def insertar_producto(nombre, precio_venta, stock_inicial, stock_minimo):
+
+# ======================================================
+# PRODUCTOS
+# ======================================================
+
+def insertar_producto(codigo, nombre, precio_venta, stock_inicial, stock_minimo):
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-    INSERT INTO productos (nombre, precio_venta, stock_actual, stock_minimo)
-    VALUES (?, ?, ?, ?)
-    """, (nombre, precio_venta, stock_inicial, stock_minimo))
+    INSERT INTO productos (codigo, nombre, precio_venta, stock_actual, stock_minimo)
+    VALUES (?, ?, ?, ?, ?)
+    """, (codigo, nombre, precio_venta, stock_inicial, stock_minimo))
 
     conn.commit()
     conn.close()
+
 
 def obtener_productos():
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("PRAGMA foreign_keys = ON;")
-
     cursor.execute("""
-    SELECT id, nombre, precio_venta, stock_actual, stock_minimo, activo
+    SELECT id, codigo, nombre, precio_venta, stock_actual, stock_minimo, activo
     FROM productos
     WHERE activo = 1
     ORDER BY nombre ASC
@@ -69,6 +98,11 @@ def obtener_productos():
     productos = cursor.fetchall()
     conn.close()
     return productos
+
+
+# ======================================================
+# STOCK
+# ======================================================
 
 def obtener_stock_producto(producto_id):
     conn = get_connection()
@@ -107,59 +141,67 @@ def obtener_stock_y_minimo(producto_id):
 
     return resultado  # (stock_actual, stock_minimo)
 
-def obtener_movimientos_producto(producto_id):
+
+# ======================================================
+# CLIENTES
+# ======================================================
+
+def obtener_o_crear_cliente(nombre_cliente):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("PRAGMA foreign_keys = ON;")
+    cursor.execute(
+        "SELECT id FROM clientes WHERE nombre = ?",
+        (nombre_cliente,)
+    )
+    resultado = cursor.fetchone()
 
-    cursor.execute("""
-    SELECT id, tipo_movimiento, cantidad, fecha, motivo
-    FROM movimientos_inventario
-    WHERE producto_id = ?
-    ORDER BY fecha ASC
-    """, (producto_id,))
+    if resultado:
+        conn.close()
+        return resultado[0]
 
-    movimientos = cursor.fetchall()
+    cursor.execute(
+        "INSERT INTO clientes (nombre) VALUES (?)",
+        (nombre_cliente,)
+    )
+    conn.commit()
+
+    cliente_id = cursor.lastrowid
     conn.close()
-    return movimientos
+    return cliente_id
 
-def obtener_salidas():
+
+def obtener_clientes():
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT
-        p.id,
-        p.nombre,
-        m.fecha,
-        m.cantidad,
-        m.motivo
-    FROM movimientos_inventario m
-    JOIN productos p ON m.producto_id = p.id
-    WHERE m.tipo_movimiento = 'SALIDA'
-    ORDER BY m.fecha ASC
+    SELECT id, nombre
+    FROM clientes
+    ORDER BY nombre ASC
     """)
 
-    salidas = cursor.fetchall()
+    datos = cursor.fetchall()
     conn.close()
-    return salidas
+    return datos
 
 
-def registrar_movimiento(producto_id, tipo_movimiento, cantidad, motivo=None):
+# ======================================================
+# MOVIMIENTOS
+# ======================================================
+
+def registrar_movimiento(producto_id, tipo_movimiento, cantidad, cliente_id=None):
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
-        cursor.execute("PRAGMA foreign_keys = ON;")
-
         fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         cursor.execute("""
         INSERT INTO movimientos_inventario
-        (producto_id, tipo_movimiento, cantidad, fecha, motivo)
+        (producto_id, cliente_id, tipo_movimiento, cantidad, fecha)
         VALUES (?, ?, ?, ?, ?)
-        """, (producto_id, tipo_movimiento, cantidad, fecha, motivo))
+        """, (producto_id, cliente_id, tipo_movimiento, cantidad, fecha))
 
         cursor.execute("""
         UPDATE productos
@@ -168,15 +210,59 @@ def registrar_movimiento(producto_id, tipo_movimiento, cantidad, motivo=None):
         """, (cantidad, producto_id))
 
         conn.commit()
-        return True, "Movimiento persistido en base de datos"
-
-    except sqlite3.IntegrityError as e:
-        conn.rollback()
-        return False, f"Error de integridad: {str(e)}"
+        return True, "Movimiento registrado correctamente."
 
     except Exception as e:
         conn.rollback()
-        return False, f"Error inesperado: {str(e)}"
+        return False, str(e)
 
     finally:
         conn.close()
+
+
+def obtener_salidas():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT 
+        p.codigo,
+        p.nombre,
+        m.fecha,
+        m.cantidad,
+        c.nombre
+    FROM movimientos_inventario m
+    JOIN productos p ON p.id = m.producto_id
+    LEFT JOIN clientes c ON c.id = m.cliente_id
+    WHERE m.tipo_movimiento = 'SALIDA'
+    ORDER BY m.fecha DESC
+    """)
+
+    datos = cursor.fetchall()
+    conn.close()
+    return datos
+
+# ======================================================
+# MOVIMIENTOS POR PRODUCTO
+# ======================================================
+
+def obtener_movimientos_producto(producto_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT 
+        m.id,
+        m.tipo_movimiento,
+        m.cantidad,
+        m.fecha,
+        c.nombre
+    FROM movimientos_inventario m
+    LEFT JOIN clientes c ON c.id = m.cliente_id
+    WHERE m.producto_id = ?
+    ORDER BY m.fecha ASC
+    """, (producto_id,))
+
+    datos = cursor.fetchall()
+    conn.close()
+    return datos

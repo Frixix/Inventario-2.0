@@ -21,21 +21,15 @@ class SalidaForm:
 
     def _build_layout(self):
 
-        tk.Label(
-            self.window,
-            text="Cantidad a retirar:"
-        ).pack(pady=10)
+        tk.Label(self.window, text="Cantidad a retirar:").pack(pady=10)
 
         self.entry_cantidad = tk.Entry(self.window)
         self.entry_cantidad.pack(pady=5)
 
-        tk.Label(
-            self.window,
-            text="Motivo:"
-        ).pack(pady=10)
+        tk.Label(self.window, text="Cliente:").pack(pady=10)
 
-        self.entry_motivo = tk.Entry(self.window)
-        self.entry_motivo.pack(pady=5)
+        self.entry_cliente = tk.Entry(self.window)
+        self.entry_cliente.pack(pady=5)
 
         tk.Button(
             self.window,
@@ -51,16 +45,16 @@ class SalidaForm:
             messagebox.showerror("Error", "La cantidad debe ser un número entero.")
             return
 
-        motivo = self.entry_motivo.get().strip()
+        cliente = self.entry_cliente.get().strip()
 
-        if not motivo:
-            messagebox.showerror("Error", "Debe indicar un motivo.")
+        if not cliente:
+            messagebox.showerror("Error", "Debe indicar el cliente.")
             return
 
         ok, mensaje = salida_producto(
             self.producto_id,
             cantidad,
-            motivo
+            cliente
         )
 
         if not ok:

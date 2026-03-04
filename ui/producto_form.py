@@ -11,20 +11,23 @@ class ProductoForm:
 
         self.window = tk.Toplevel(parent)
         self.window.title("Registrar Producto")
-        self.window.geometry("400x350")
+        self.window.geometry("400x400")
         self.window.resizable(False, False)
 
-        # ===== HACER MODAL =====
+        # Modal
         self.window.transient(parent)
         self.window.grab_set()
         self.window.focus()
 
-        # Manejar cierre con la X
         self.window.protocol("WM_DELETE_WINDOW", self._cerrar_formulario)
 
         self._build_form()
 
     def _build_form(self):
+
+        tk.Label(self.window, text="Código").pack(pady=5)
+        self.codigo_entry = tk.Entry(self.window)
+        self.codigo_entry.pack(pady=5)
 
         tk.Label(self.window, text="Nombre").pack(pady=5)
         self.nombre_entry = tk.Entry(self.window)
@@ -51,22 +54,27 @@ class ProductoForm:
     def _guardar_producto(self):
 
         try:
+            codigo = self.codigo_entry.get().strip()
             nombre = self.nombre_entry.get().strip()
             precio = int(self.precio_entry.get())
             stock = int(self.stock_entry.get())
             minimo = int(self.minimo_entry.get())
 
-            ok, mensaje = crear_producto(nombre, precio, stock, minimo)
+            ok, mensaje = crear_producto(
+                codigo,
+                nombre,
+                precio,
+                stock,
+                minimo
+            )
 
             if not ok:
                 messagebox.showerror("Error", mensaje)
                 return
 
-            messagebox.showinfo("Éxito", "Producto registrado correctamente")
+            messagebox.showinfo("Éxito", mensaje)
 
-            # Solo aquí llamamos al callback
             self.on_success_callback()
-
             self.window.destroy()
 
         except ValueError:

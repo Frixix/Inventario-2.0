@@ -12,62 +12,84 @@ class MainWindow:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Sistema de Inventario")
-        self.root.geometry("900x500")
+        self.root.geometry("1100x750")
         self.root.resizable(False, False)
 
+        self._configurar_estilos()
         self._build_layout()
         self._cargar_productos()
 
     # =========================
-    # CONSTRUCCIÓN INTERFAZ
+    # ESTILOS
+    # =========================
+    def _configurar_estilos(self):
+        style = ttk.Style()
+        style.theme_use("clam")
+
+        # Fuente general
+        style.configure(".", font=("Segoe UI", 10))
+
+        # Botones
+        style.configure("TButton", padding=6)
+
+        # Tabla
+        style.configure("Treeview", rowheight=28)
+        style.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
+
+    # =========================
+    # INTERFAZ
     # =========================
     def _build_layout(self):
 
+        # ===== HEADER SUPERIOR =====
+        header = tk.Frame(self.root, bg="#1f2937", height=60)
+        header.pack(fill="x")
+
         titulo = tk.Label(
-            self.root,
+            header,
             text="Sistema de Inventario",
-            font=("Arial", 18, "bold")
+            bg="#1f2937",
+            fg="white",
+            font=("Segoe UI", 16, "bold")
         )
         titulo.pack(pady=15)
 
-        # =========================
-        # TABLA DE PRODUCTOS
-        # =========================
+        # ===== TABLA =====
+        columnas = ("ID", "Código", "Nombre", "Precio", "Stock", "Mínimo")
 
-        columnas = ("ID", "Nombre", "Precio", "Stock", "Mínimo")
+        frame_tabla = ttk.Frame(self.root)
+        frame_tabla.pack(pady=20)
 
         self.tabla = ttk.Treeview(
-            self.root,
+            frame_tabla,
             columns=columnas,
             show="headings",
             height=15
         )
 
-        self.tabla.heading("ID", text="ID")
+        for col in columnas:
+            self.tabla.heading(col, text=col)
+            self.tabla.column(col, width=140, anchor="center")
+
+        # Ajuste fino de columnas
         self.tabla.column("ID", width=60, anchor="center")
-
-        self.tabla.heading("Nombre", text="Nombre del Producto")
-        self.tabla.column("Nombre", width=250, anchor="w")
-
-        self.tabla.heading("Precio", text="Precio (COP)")
+        self.tabla.column("Código", width=120, anchor="center")
+        self.tabla.column("Nombre", width=220, anchor="w")
         self.tabla.column("Precio", width=120, anchor="center")
+        self.tabla.column("Stock", width=100, anchor="center")
+        self.tabla.column("Mínimo", width=100, anchor="center")
 
-        self.tabla.heading("Stock", text="Stock Actual")
-        self.tabla.column("Stock", width=120, anchor="center")
+        self.tabla.pack()
 
-        self.tabla.heading("Mínimo", text="Stock Mínimo")
-        self.tabla.column("Mínimo", width=120, anchor="center")
+        # ===== SEPARADOR =====
+        separador = ttk.Separator(self.root, orient="horizontal")
+        separador.pack(fill="x", pady=10)
 
-        self.tabla.pack(pady=10)
+        # ===== BOTONES =====
+        frame_botones = ttk.Frame(self.root)
+        frame_botones.pack(pady=10)
 
-        # =========================
-        # BOTONES
-        # =========================
-
-        frame_botones = tk.Frame(self.root)
-        frame_botones.pack(pady=15)
-
-        self.btn_refrescar = tk.Button(
+        self.btn_refrescar = ttk.Button(
             frame_botones,
             text="Refrescar",
             width=20,
@@ -75,7 +97,7 @@ class MainWindow:
         )
         self.btn_refrescar.grid(row=0, column=0, padx=10)
 
-        self.btn_registrar = tk.Button(
+        self.btn_registrar = ttk.Button(
             frame_botones,
             text="Registrar Producto",
             width=20,
@@ -83,7 +105,7 @@ class MainWindow:
         )
         self.btn_registrar.grid(row=0, column=1, padx=10)
 
-        self.btn_entrada = tk.Button(
+        self.btn_entrada = ttk.Button(
             frame_botones,
             text="Entrada de Inventario",
             width=20,
@@ -91,7 +113,7 @@ class MainWindow:
         )
         self.btn_entrada.grid(row=0, column=2, padx=10)
 
-        self.btn_salida = tk.Button(
+        self.btn_salida = ttk.Button(
             frame_botones,
             text="Salida de Inventario",
             width=20,
@@ -99,7 +121,7 @@ class MainWindow:
         )
         self.btn_salida.grid(row=0, column=3, padx=10)
 
-        self.btn_ver_salidas = tk.Button(
+        self.btn_ver_salidas = ttk.Button(
             frame_botones,
             text="Ver Salidas",
             width=20,
@@ -108,13 +130,7 @@ class MainWindow:
         self.btn_ver_salidas.grid(row=1, column=0, columnspan=2, pady=10)
 
     # =========================
-    # VER SALIDAS
-    # =========================
-    def _abrir_salidas_view(self):
-        SalidasView(self.root)
-
-    # =========================
-    # CARGA DE DATOS
+    # CARGAR PRODUCTOS
     # =========================
     def _cargar_productos(self):
 
@@ -124,12 +140,12 @@ class MainWindow:
         productos = listar_productos()
 
         for p in productos:
-            id_, nombre, precio, stock, minimo, activo = p
+            id_, codigo, nombre, precio, stock, minimo, activo = p
 
             self.tabla.insert(
                 "",
                 tk.END,
-                values=(id_, nombre, precio, stock, minimo)
+                values=(id_, codigo, nombre, precio, stock, minimo)
             )
 
     # =========================
@@ -148,21 +164,14 @@ class MainWindow:
         return valores[0]
 
     # =========================
-    # FORMULARIO PRODUCTO
+    # FORMULARIOS
     # =========================
     def _abrir_formulario_producto(self):
-
         self._deshabilitar_botones()
-
         form = ProductoForm(self.root, self._on_datos_modificados)
-
         self.root.wait_window(form.window)
-
         self._habilitar_botones()
 
-    # =========================
-    # FORMULARIO ENTRADA
-    # =========================
     def _abrir_formulario_entrada(self):
 
         producto_id = self._obtener_producto_seleccionado()
@@ -175,20 +184,14 @@ class MainWindow:
             return
 
         self._deshabilitar_botones()
-
         form = EntradaForm(
             self.root,
             producto_id,
             self._on_datos_modificados
         )
-
         self.root.wait_window(form.window)
-
         self._habilitar_botones()
 
-    # =========================
-    # FORMULARIO SALIDA
-    # =========================
     def _abrir_formulario_salida(self):
 
         producto_id = self._obtener_producto_seleccionado()
@@ -201,25 +204,25 @@ class MainWindow:
             return
 
         self._deshabilitar_botones()
-
         form = SalidaForm(
             self.root,
             producto_id,
             self._on_datos_modificados
         )
-
         self.root.wait_window(form.window)
-
         self._habilitar_botones()
 
+    def _abrir_salidas_view(self):
+        SalidasView(self.root)
+
     # =========================
-    # CALLBACK GENERAL
+    # CALLBACK
     # =========================
     def _on_datos_modificados(self):
         self._cargar_productos()
 
     # =========================
-    # CONTROL DE ESTADO BOTONES
+    # ESTADO BOTONES
     # =========================
     def _deshabilitar_botones(self):
         self.btn_refrescar.config(state="disabled")
@@ -233,8 +236,5 @@ class MainWindow:
         self.btn_entrada.config(state="normal")
         self.btn_salida.config(state="normal")
 
-    # =========================
-    # RUN
-    # =========================
     def run(self):
         self.root.mainloop()
